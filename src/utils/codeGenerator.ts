@@ -24,7 +24,6 @@ export function generateCode(nodes: Node<SklearnNodeData>[], edges: Edge[]): str
     const startNodes = nodes.filter(n => !incomingEdges[n.id]);
 
     // If multiple start nodes, we just pick the first one for the linear sequence for now
-    // In a real DAG we would handle this differently.
     let currentNode = startNodes[0];
 
     while (currentNode) {
@@ -38,12 +37,21 @@ export function generateCode(nodes: Node<SklearnNodeData>[], edges: Edge[]): str
     const imports = new Set<string>();
     imports.add("from sklearn.pipeline import Pipeline");
 
+    let usesColumnTransformer = false;
+
     sortedNodes.forEach(node => {
         const comp = COMPONENT_LIBRARY.find(c => c.id === node.data.componentId);
         if (comp) {
             imports.add(`from ${comp.module} import ${comp.className}`);
         }
+        if (node.data.selectedColumns && node.data.selectedColumns.length > 0) {
+            usesColumnTransformer = true;
+        }
     });
+
+    if (usesColumnTransformer) {
+        imports.add("from sklearn.compose import ColumnTransformer");
+    }
 
     // 3. Generate Pipeline steps
     const steps = sortedNodes.map((node, index) => {
@@ -55,12 +63,6 @@ export function generateCode(nodes: Node<SklearnNodeData>[], edges: Edge[]): str
 
         comp.params.forEach(p => {
             const val = params[p.name] ?? p.defaultValue;
-
-            // Only include non-default values to keep code clean?
-            // Or include all? Let's include if it's explicitly different from default
-            // OR just include everything to be explicit.
-            // For code clarity, let's format strings properly.
-
             let valStr = "";
             if (typeof val === 'string') {
                 valStr = `'${val}'`;
@@ -70,19 +72,35 @@ export function generateCode(nodes: Node<SklearnNodeData>[], edges: Edge[]): str
                 valStr = String(val);
             }
 
-            // If the value is 0 and it represents 'None' for max_depth etc.
-            if (p.name === 'max_depth' && val === 0) {
+             // If the value is 0 and it represents 'None' for max_depth etc.
+             if (p.name === 'max_depth' && val === 0) {
                  valStr = 'None';
             }
+             // For penalty='None' string
+             if (p.name === 'penalty' && val === 'None') {
+                 valStr = 'None';
+             }
 
             paramStrings.push(`${p.name}=${valStr}`);
         });
 
-        // step name: 'standard_scaler' or 'pca'
-        // If multiple of same type, we might want to append index, but for now simple snake_case of name
+        // Basic instantiation string
+        const estimatorCode = `${comp.className}(${paramStrings.join(', ')})`;
         const stepName = comp.name.toLowerCase().replace(/\s+/g, '_');
+        const uniqueStepName = `${stepName}_${index}`;
 
-        return `    ('${stepName}_${index}', ${comp.className}(${paramStrings.join(', ')}))`;
+        // Check if we need to wrap in ColumnTransformer
+        const selectedCols = node.data.selectedColumns;
+        if (selectedCols && selectedCols.length > 0) {
+            // Format column list for python
+            const colsStr = `[${selectedCols.map(c => `'${c}'`).join(', ')}]`;
+
+            // Generate ColumnTransformer code
+            // We use 'passthrough' for remainder to keep other columns
+            return `    ('${uniqueStepName}', ColumnTransformer(\n        [('${stepName}', ${estimatorCode}, ${colsStr})],\n        remainder='passthrough'\n    ))`;
+        } else {
+            return `    ('${uniqueStepName}', ${estimatorCode})`;
+        }
     });
 
     return [

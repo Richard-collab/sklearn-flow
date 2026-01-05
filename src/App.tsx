@@ -16,8 +16,9 @@ import type {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import { Box, Paper, Typography, Button, Modal } from '@mui/material';
+import { Box, Paper, Typography, Button, Modal, Dialog, DialogTitle, DialogContent, TextField, DialogActions } from '@mui/material';
 import CodeIcon from '@mui/icons-material/Code';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 import Sidebar from './components/Sidebar';
 import PropertiesPanel from './components/PropertiesPanel';
@@ -38,6 +39,22 @@ const App: React.FC = () => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [codeModalOpen, setCodeModalOpen] = useState(false);
   const [generatedCode, setGeneratedCode] = useState("");
+
+  // Dataset Column Management
+  const [columnsModalOpen, setColumnsModalOpen] = useState(false);
+  const [datasetColumnsStr, setDatasetColumnsStr] = useState(""); // Comma separated string
+  const [datasetColumns, setDatasetColumns] = useState<string[]>([]);
+
+  const handleOpenColumnsModal = () => {
+      setDatasetColumnsStr(datasetColumns.join(', '));
+      setColumnsModalOpen(true);
+  };
+
+  const handleSaveColumns = () => {
+      const cols = datasetColumnsStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      setDatasetColumns(cols);
+      setColumnsModalOpen(false);
+  };
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -81,7 +98,8 @@ const App: React.FC = () => {
         data: {
             label: componentDef.name,
             componentId: componentDef.id,
-            params: {} // will be populated with defaults by PropertiesPanel or we can pre-populate here
+            params: {}, // will be populated with defaults by PropertiesPanel or we can pre-populate here
+            selectedColumns: []
         },
       };
 
@@ -98,14 +116,15 @@ const App: React.FC = () => {
       setSelectedNodeId(null);
   }, []);
 
-  const handleUpdateParams = (nodeId: string, newParams: Record<string, any>) => {
+  const handleUpdateParams = (nodeId: string, newParams: Record<string, any>, selectedColumns?: string[]) => {
       setNodes((nds) => nds.map((node) => {
           if (node.id === nodeId) {
               return {
                   ...node,
                   data: {
                       ...node.data,
-                      params: newParams
+                      params: newParams,
+                      selectedColumns: selectedColumns !== undefined ? selectedColumns : node.data.selectedColumns
                   }
               };
           }
@@ -144,6 +163,14 @@ const App: React.FC = () => {
             <Background />
             <Panel position="top-right">
                 <Button
+                    variant="outlined"
+                    startIcon={<SettingsIcon />}
+                    onClick={handleOpenColumnsModal}
+                    sx={{ m: 1, bgcolor: 'background.paper' }}
+                >
+                    Dataset Columns
+                </Button>
+                <Button
                     variant="contained"
                     startIcon={<CodeIcon />}
                     onClick={handleGenerateCode}
@@ -158,6 +185,7 @@ const App: React.FC = () => {
         <PropertiesPanel
             selectedNode={selectedNode}
             onUpdateParams={handleUpdateParams}
+            datasetColumns={datasetColumns}
         />
 
         {/* Code Preview Modal */}
@@ -198,6 +226,35 @@ const App: React.FC = () => {
                 </Box>
             </Box>
         </Modal>
+
+        {/* Columns Configuration Dialog */}
+        <Dialog open={columnsModalOpen} onClose={() => setColumnsModalOpen(false)}>
+            <DialogTitle>Configure Dataset Columns</DialogTitle>
+            <DialogContent>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Enter the column names of your dataset, separated by commas.
+                    These will be available for selection in each component.
+                </Typography>
+                <TextField
+                    autoFocus
+                    margin="dense"
+                    id="columns"
+                    label="Column Names"
+                    type="text"
+                    fullWidth
+                    multiline
+                    rows={4}
+                    variant="outlined"
+                    value={datasetColumnsStr}
+                    onChange={(e) => setDatasetColumnsStr(e.target.value)}
+                    placeholder="e.g. age, income, price, category"
+                />
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={() => setColumnsModalOpen(false)}>Cancel</Button>
+                <Button onClick={handleSaveColumns} variant="contained">Save</Button>
+            </DialogActions>
+        </Dialog>
 
       </ReactFlowProvider>
     </Box>

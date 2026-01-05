@@ -20,6 +20,7 @@ export interface SklearnComponent {
     module: string;         // Python module (e.g., 'sklearn.preprocessing')
     className: string;      // Python class name (e.g., 'StandardScaler')
     type: 'transformer' | 'estimator'; // Rough categorization
+    category?: string;      // Finer categorization (e.g., 'Preprocessing', 'Classification')
     params: NodeParam[];
 }
 
@@ -28,4 +29,5 @@ export interface SklearnNodeData {
     label: string;
     componentId: string; // References the SklearnComponent.id
     params: Record<string, any>; // Current values for the parameters
+    selectedColumns?: string[]; // Columns to apply this estimator/transformer to
 }
