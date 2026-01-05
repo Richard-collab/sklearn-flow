@@ -1,8 +1,8 @@
 // src/test_generation.test.ts
 import { describe, it, expect } from 'vitest';
 import { generateCode } from './utils/codeGenerator';
-import { Node, Edge } from 'reactflow';
-import { SklearnNodeData } from './types';
+import type { Node, Edge } from 'reactflow';
+import type { SklearnNodeData } from './types';
 
 // Mock data
 const mockNodes: Node<SklearnNodeData>[] = [

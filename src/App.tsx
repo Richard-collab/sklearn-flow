@@ -11,7 +11,6 @@ import ReactFlow, {
 } from 'reactflow';
 import type {
     Connection,
-    Edge,
     Node,
     ReactFlowInstance
 } from 'reactflow';

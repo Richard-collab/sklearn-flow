@@ -1,7 +1,7 @@
 // src/components/Sidebar.tsx
 import React from 'react';
 import { COMPONENT_LIBRARY } from '../componentLibrary';
-import { Box, Typography, Paper, Chip } from '@mui/material';
+import { Box, Typography, Paper } from '@mui/material';
 
 const Sidebar: React.FC = () => {
   const onDragStart = (event: React.DragEvent, nodeType: string, componentId: string) => {
